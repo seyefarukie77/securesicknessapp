@@ -7,3 +7,8 @@ __pycache__
 .gitignore
 Dockerfile
 k8s
+# IDE
+.vscode/*
+!.vscode/extensions.json
+*.swp
+*.sw
