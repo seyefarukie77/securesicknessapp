@@ -11,4 +11,4 @@ k8s
 .vscode/*
 !.vscode/extensions.json
 *.swp
-*.sw
+*.swo
