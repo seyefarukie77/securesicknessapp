@@ -1,0 +1,22 @@
+# Terraform
+.terraform/
+terraform.tfstate
+terraform.tfstate.backup
+.terraform.lock.hcl
+
+# Python
+__pycache__/
+*.pyc
+
+# Docker
+*.log
+
+# Kubernetes
+*.yaml~
+
+# VSCode
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
