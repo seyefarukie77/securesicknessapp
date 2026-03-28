@@ -27,7 +27,7 @@ resource "google_container_cluster" "gke" {
   name     = "my-gke-cluster"
   location = var.zone
 
-  remove_default_node_pool = true
+  remove_default_node_pool = false
   initial_node_count       = 1
 
   networking_mode = "VPC_NATIVE"
@@ -37,7 +37,7 @@ resource "google_container_cluster" "gke" {
 
 # Node Pool (existing)
 resource "google_container_node_pool" "primary_nodes" {
-  name       = "primary-node-pool"
+  name       = "default-pool"
   location   = var.zone
   cluster    = google_container_cluster.gke.name
 
