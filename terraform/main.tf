@@ -9,6 +9,11 @@ terraform {
   }
 }
 
+variable "image_tag" {
+  description = "Container image tag to deploy"
+  type        = string
+}
+
 provider "google" {
   project = var.project_id
   region  = var.region
