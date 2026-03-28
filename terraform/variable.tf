@@ -1,6 +1,6 @@
 variable "project_id" {
   type        = string
-  description = "GCP project ID"
+  default     = "able-cogency-250511"
 }
 
 variable "region" {
