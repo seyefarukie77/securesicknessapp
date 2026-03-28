@@ -34,11 +34,10 @@ resource "google_container_cluster" "gke" {
 
   remove_default_node_pool = true
   initial_node_count       = 1
+  deletion_protection      = false
 
   networking_mode = "VPC_NATIVE"
-
   ip_allocation_policy {}
-
   network    = "default"
   subnetwork = "default"
 }
