@@ -45,35 +45,33 @@ resource "google_container_cluster" "gke" {
 
   # Prevent Terraform from trying to recreate cluster
   lifecycle {
-    ignore_changes = [
-      initial_node_count,
-      node_config,
-      node_pool,
-      addons_config,
-      logging_config,
-      monitoring_config,
-      master_auth,
-      cluster_autoscaling,
-      resource_labels,
-      authenticator_groups_config,
-      gateway_api_config,
-      identity_service_config,
-      mesh_certificates,
-      monitoring_config,
-      tpu_config,
-      database_encryption,
-      default_snat_status,
-      enable_intranode_visibility,
-      enable_tpu,
-      enable_autopilot,
-      logging_service,
-      monitoring_service,
-      node_locations,
-      node_version,
-      master_version,
-      ip_allocation_policy,
-    ]
-  }
+  ignore_changes = [
+    node_config,
+    node_pool,
+    addons_config,
+    logging_config,
+    monitoring_config,
+    master_auth,
+    cluster_autoscaling,
+    resource_labels,
+    authenticator_groups_config,
+    gateway_api_config,
+    identity_service_config,
+    mesh_certificates,
+    monitoring_config,
+    tpu_config,
+    database_encryption,
+    default_snat_status,
+    enable_intranode_visibility,
+    enable_tpu,
+    enable_autopilot,
+    logging_service,
+    monitoring_service,
+    node_locations,
+    node_version,
+    master_version,
+    ip_allocation_policy,
+  ]
 }
 
 # Node Pool (existing)
