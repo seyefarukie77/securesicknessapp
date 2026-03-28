@@ -1,3 +1,5 @@
+# Deprecated — Deployment now managed by Terraform in k8s/deployment.tf
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
