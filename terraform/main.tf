@@ -58,7 +58,6 @@ resource "google_container_cluster" "gke" {
       gateway_api_config,
       identity_service_config,
       mesh_certificates,
-      monitoring_config,
       tpu_config,
       database_encryption,
       default_snat_status,
