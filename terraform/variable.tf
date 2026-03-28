@@ -12,3 +12,8 @@ variable "zone" {
   type        = string
   default     = "europe-west1-b"
 }
+
+variable "image_tag" {
+  description = "Container image tag to deploy"
+  type        = string
+}
