@@ -9,11 +9,6 @@ terraform {
   }
 }
 
-variable "image_tag" {
-  description = "Container image tag to deploy"
-  type        = string
-}
-
 provider "google" {
   project = var.project_id
   region  = var.region
@@ -28,6 +23,14 @@ resource "google_artifact_registry_repository" "app_images" {
 
   # Keep description to avoid Terraform removing it
   description = "App images"
+}
+
+data "google_client_config" "default" {}
+
+provider "kubernetes" {
+  host                   = google_container_cluster.gke.endpoint
+  token                  = data.google_client_config.default.access_token
+  cluster_ca_certificate = base64decode(google_container_cluster.gke.master_auth[0].cluster_ca_certificate)
 }
 
 # GKE Cluster (existing)
