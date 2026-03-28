@@ -67,7 +67,6 @@ resource "google_container_cluster" "gke" {
     monitoring_service,
     node_locations,
     node_version,
-    master_version,
     ip_allocation_policy,
   ]
 }
