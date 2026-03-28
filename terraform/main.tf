@@ -15,18 +15,17 @@ provider "google" {
   zone    = var.zone
 }
 
-# Artifact Registry repo
+# Artifact Registry (existing)
 resource "google_artifact_registry_repository" "app_images" {
   location      = var.region
   repository_id = "app-images"
-  description   = "Docker images for securesicknessapp"
   format        = "DOCKER"
 }
 
-# GKE cluster
-resource "google_container_cluster" "primary" {
-  name     = "securesicknessapp-cluster"
-  location = var.region
+# GKE Cluster (existing)
+resource "google_container_cluster" "gke" {
+  name     = "my-gke-cluster"
+  location = var.zone
 
   remove_default_node_pool = true
   initial_node_count       = 1
@@ -34,19 +33,15 @@ resource "google_container_cluster" "primary" {
   networking_mode = "VPC_NATIVE"
 
   ip_allocation_policy {}
-
-  release_channel {
-    channel = "REGULAR"
-  }
 }
 
-# Node pool
+# Node Pool (existing)
 resource "google_container_node_pool" "primary_nodes" {
-  name       = "primary-pool"
-  location   = var.region
-  cluster    = google_container_cluster.primary.name
+  name       = "primary-node-pool"
+  location   = var.zone
+  cluster    = google_container_cluster.gke.name
 
-  node_count = 2
+  node_count = 3
 
   node_config {
     machine_type = "e2-medium"
