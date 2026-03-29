@@ -22,3 +22,4 @@ __pycache__/
 Thumbs.db
 terraform/*.tfstate*
 terraform/*.tfstate*
+terraform/*.tfstate*
