@@ -6,34 +6,38 @@ on:
       - main
 
 jobs:
-  deploy:
-    runs-on: ubuntu-latest
+deploy:
+  runs-on: ubuntu-latest
 
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+  steps:
+    - name: Checkout
+      uses: actions/checkout@v4
 
-    - name: Set up Cloud SDK
-      uses: google-github-actions/setup-gcloud@v1
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+    - name: Setup gcloud
+      uses: google-github-actions/setup-gcloud@2
       with:
         project_id: ${{ secrets.GCP_PROJECT_ID }}
-        service_account_key: ${{ secrets.GCP_SA_KEY }}
-        export_default_credentials: true
+        install_components: gke-gcloud-auth-plugin
 
-    - name: Configure Docker for Artifact Registry
-      run: gcloud auth configure-docker europe-west1-docker.pkg.dev
+    - name: Configure Docker for GCR
+      run: gcloud auth configure-docker europe-west2-docker.pkg.dev
 
     - name: Build and push Docker image
       run: |
-        IMAGE="europe-west1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/app-images/secureapp:${{ github.sha }}"
-        docker build -t $IMAGE .
-        docker push $IMAGE
-        echo "IMAGE=$IMAGE" >> $GITHUB_ENV
+        docker build -t europe-west2-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/securesicknessapp/api:latest .
+        docker push europe-west2-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/securesicknessapp/api:latest
 
     - name: Get GKE credentials
-      run: gcloud container clusters get-credentials my-gke-cluster --zone europe-west1-b
+      run: |
+        gcloud container clusters get-credentials ${{ secrets.GKE_CLUSTER_NAME }} \
+          --region europe-west2 \
+          --project ${{ secrets.GCP_PROJECT_ID }}
 
     - name: Deploy to GKE
       run: |
-        kubectl set image deployment/secureapp secureapp=$IMAGE
-        kubectl rollout status deployment/secureapp
+        kubectl apply -f k8s/
