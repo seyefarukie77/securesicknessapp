@@ -19,12 +19,12 @@ deploy:
         credentials_json: ${{ secrets.GCP_SA_KEY }}
 
     - name: Setup gcloud
-      uses: google-github-actions/setup-gcloud@2
+      uses: google-github-actions/setup-gcloud@v2
       with:
         project_id: ${{ secrets.GCP_PROJECT_ID }}
         install_components: gke-gcloud-auth-plugin
 
-    - name: Configure Docker for GCR
+    - name: Configure Docker for Artifact Registry
       run: gcloud auth configure-docker europe-west2-docker.pkg.dev
 
     - name: Build and push Docker image
@@ -39,5 +39,7 @@ deploy:
           --project ${{ secrets.GCP_PROJECT_ID }}
 
     - name: Deploy to GKE
+      run: kubectl apply -f k8s/
+
       run: |
         kubectl apply -f k8s/
