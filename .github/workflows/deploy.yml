@@ -1,4 +1,4 @@
-name: Deploy to GKE
+name: Deploy with Terraform
 
 on:
   push:
@@ -10,33 +10,36 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
+      - uses: actions/checkout@v4
+      
+      - uses: google-github-actions/auth@v2
+      
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
+          
+      - uses: google-github-actions/setup-gcloud@v2
 
-      - name: Setup gcloud
-        uses: google-github-actions/setup-gcloud@v2
-        with:
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-          install_components: gke-gcloud-auth-plugin
-
-      - name: Configure Docker for Artifact Registry
+      - name: Configure Docker
         run: gcloud auth configure-docker europe-west1-docker.pkg.dev
-
+      
       - name: Build and push Docker image
         run: |
-          docker build -t europe-west1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/securesicknessapp/api:latest .
-          docker push europe-west1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/securesicknessapp/api:latest
+          IMAGE_REPO=europe-west1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/app-images/secureapp
+          IMAGE_TAG=${{ github.sha }}
+    
+          docker build -t $IMAGE_REPO:$IMAGE_TAG .
+          docker push $IMAGE_REPO:$IMAGE_TAG
 
-      - name: Get GKE credentials
+      - name: Terraform init
+        working-directory: terraform
+        run: terraform init
+
+      - name: Terraform apply
+        working-directory: terraform
         run: |
-          gcloud container clusters get-credentials ${{ secrets.GKE_CLUSTER_NAME }} \
-            --zone europe-west1-b \
-            --project ${{ secrets.GCP_PROJECT_ID }}
+          terrraform apply -auto-approve \
+            -var="project_id=${{ secrets.GCP_PROJECT_ID }}" \
+            -var="image_repo=$IMAGE_REPO" \
+            -var="image_tag=${{ github.sha }}"
 
-      - name: Deploy to GKE
-        run: kubectl apply -f k8s/
+          

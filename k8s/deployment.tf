@@ -9,6 +9,15 @@ resource "kubernetes_deployment" "secureapp" {
   spec {
     replicas = 2
 
+    strategy {
+      type = "RollingUpdate"
+
+      rolling_update {
+        max_surge       = 1
+        max_unavailable = 0
+      }
+    }
+
     selector {
       match_labels = {
         app = "secureapp"
@@ -25,7 +34,7 @@ resource "kubernetes_deployment" "secureapp" {
       spec {
         container {
           name  = "secureapp"
-          image = "europe-west1-docker.pkg.dev/${var.project_id}/app-images/secureapp:${var.image_tag}"
+          image = "${var.image_repo}:${var.image_tag}"
 
           port {
             container_port = 8000
