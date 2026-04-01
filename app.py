@@ -2,12 +2,14 @@
 from flask import Flask
 from database import db
 from routes import sickness_bp
+import os
 
 def create_app():
     app = Flask(__name__)
     app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///sickness.db"
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["UPLOAD_FOLDER"] = "uploads"
+    os.makedirs(app.config["UPLOAD_FOLDER"], exist
 
     db.init_app(app)
 
@@ -19,8 +21,7 @@ def create_app():
 app = create_app()
 
 # Flask CLI command
-@app.cli.command("init-db")
-def init_db():
+with app.app_context():
     from models import User
     db.drop_all()
     db.create_all()
