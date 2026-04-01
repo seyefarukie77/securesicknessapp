@@ -94,6 +94,22 @@ jobs:
       - name: Build image (SHA tag)
         run: |
           docker build -t $IMAGE_REPO:$IMAGE_TAG .
+      
+      - name: Run tests
+        run: pytest
+
+      # Example: run container and do a basic health check before pushing (optional but strong)
+      - name: Container health check
+        run: |
+          CONTAINER_ID=$(docker run -d $IMAGE_REPO:$IMAGE_TAG)
+          sleep 5
+          # wait for container to start
+          if ! docker logs $CONTAINER_ID 2>&1 | grep -q "Listening on port"; then
+            echo "Container failed health check"
+            docker logs $CONTAINER_ID
+            exit 1
+          fi
+          docker stop $CONTAINER_ID
 
       # ---- Container vulnerability scan BEFORE push (optional but strong) ----
       # Trivy image scan example is from Trivy action docs. [4](https://github.com/aquasecurity/trivy-action)
