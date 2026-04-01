@@ -50,7 +50,7 @@ jobs:
       # ---- IaC scan (Terraform) ----
       # If you have Terraform in ./terraform, scan it with Trivy in fs mode. [4](https://github.com/aquasecurity/trivy-action)
       - name: Trivy IaC scan (Terraform/K8s manifests)
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@0master
         with:
           scan-type: fs
           scan-ref: .
@@ -98,7 +98,7 @@ jobs:
       # ---- Container vulnerability scan BEFORE push (optional but strong) ----
       # Trivy image scan example is from Trivy action docs. [4](https://github.com/aquasecurity/trivy-action)
       - name: Trivy image scan (pre-push)
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@0master
         with:
           image-ref: ${{ env.IMAGE_REPO }}:${{ env.IMAGE_TAG }}
           format: table
