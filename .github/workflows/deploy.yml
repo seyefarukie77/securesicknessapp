@@ -40,7 +40,7 @@ jobs:
       # Minimal Bandit example comes from Bandit docs. [3](https://bandit.readthedocs.io/en/latest/ci-cd/github-actions.html)
       - name: Bandit (SAST)
         run: |
-          bandit -r . -x ./.venv,./tests -ll -iii
+          bandit -r . -x ./.venv,./tests,./google-cloud-sdk -ll -iii
 
       # ---- Dependency vulnerability scan ----
       - name: pip-audit (dependencies)
