@@ -32,7 +32,7 @@ resource "google_container_cluster" "gke" {
   name     = "my-gke-cluster"
   location = var.zone
 
-  deletion_protection      = false
+  deletion_protection = false
 
   networking_mode = "VPC_NATIVE"
   ip_allocation_policy {}
