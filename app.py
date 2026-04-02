@@ -1,9 +1,14 @@
 #app.py
 from flask import Flask
+import os
+import sys
+
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 from database import db
 from routes import sickness_bp
 from model import User
-import os
+
 
 def create_app():
     app = Flask(__name__)
@@ -22,10 +27,9 @@ def create_app():
 app = create_app()
 
 # Flask CLI command
-with app.app_context():
-    from model import User
-    db.drop_all()
-    db.create_all()
+if os.environ.get("INIT_DB") == "true":
+    with app.app_context():
+        db.create_all()
 
     # Demo users
     employee = User(name="Alice Employee", role="employee")
