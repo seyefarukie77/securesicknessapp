@@ -23,3 +23,7 @@ Thumbs.db
 terraform/*.tfstate*
 terraform/*.tfstate*
 terraform/*.tfstate*
+google-cloud-sdk/
+google-cloud-sdk/
+google-cloud-sdk/
+google-cloud-sdk/
