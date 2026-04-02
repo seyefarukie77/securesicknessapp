@@ -2,6 +2,7 @@
 .git
 .gitignore
 .github/
+gha-creds-*.json
 
 # ---- Python ----
 __pycache__/
@@ -9,6 +10,8 @@ __pycache__/
 *.pyd
 *.so
 .Python
+*.pytest_cache
+*.pyc
 
 # Virtual environments
 .venv/
@@ -20,6 +23,7 @@ build/
 dist/
 *.egg-info/
 .eggs/
+.cache/
 
 # Tests
 tests/

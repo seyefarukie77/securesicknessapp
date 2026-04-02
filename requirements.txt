@@ -1,3 +1,6 @@
 flask
 flask_sqlalchemy
 gunicorn
+setuptools>=79.0.1
+wheel>=0.46.2
+jaraco.context>=6.1.0
