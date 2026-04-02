@@ -39,3 +39,6 @@ if os.environ.get("INIT_DB") == "true":
     db.session.commit()
 
     print("Database initialised.")
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
