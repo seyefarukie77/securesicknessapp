@@ -5,7 +5,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
-COPY app.py routes/ model/ database.py ./
+COPY app.py routes.py model.py database.py ./
 
 # Set default port
 ENV PORT=8080

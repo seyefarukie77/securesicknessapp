@@ -48,7 +48,7 @@ pytest.ini
 # ---- Docker / CI noise ----
 Dockerfile
 docker-compose*
-.dockerignore
+
 
 # ---- Secrets ----
 .env
