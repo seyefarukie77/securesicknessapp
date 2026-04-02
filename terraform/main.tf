@@ -32,10 +32,11 @@ resource "google_container_cluster" "gke" {
   name     = "my-gke-cluster"
   location = var.zone
 
-  deletion_protection = false
+  # Must match existing cluster
+  deletion_protection = true
 
-  remove_default_node_pool = true
-  initial_node_count       = 1
+ #remove_default_node_pool = true
+ #initial_node_count       = 1
 
   networking_mode = "VPC_NATIVE"
   ip_allocation_policy {}
@@ -59,8 +60,9 @@ resource "google_container_node_pool" "primary_nodes" {
   }
 }
 
-provider "kubernetes" {
-  host                   = google_container_cluster.gke.endpoint
-  token                  = data.google_client_config.default.access_token
-  cluster_ca_certificate = base64decode(google_container_cluster.gke.master_auth[0].cluster_ca_certificate)
-}
+#provider "kubernetes" {
+#  host                   = google_container_cluster.gke.endpoint
+#  token                  = data.google_client_config.default.access_token
+#  cluster_ca_certificate = base64decode(google_container_cluster.gke.master_auth[0].cluster_ca_certificate)
+#}
+
