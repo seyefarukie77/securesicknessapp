@@ -23,7 +23,7 @@ app = create_app()
 
 # Flask CLI command
 with app.app_context():
-    from models import User
+    from model import User
     db.drop_all()
     db.create_all()
 
