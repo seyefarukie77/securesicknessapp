@@ -2,6 +2,7 @@
 from flask import Flask
 from database import db
 from routes import sickness_bp
+from model import User
 import os
 
 def create_app():
