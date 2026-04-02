@@ -1,19 +1,20 @@
-# Dockerfile
 FROM python:3.11-slim
 
 WORKDIR /app
-COPY requirements.txt .
-RUN pip install -r requirements.txt
 
+# ✅ Upgrade tooling FIRST (prevents vulnerable vendored deps)
 RUN pip install --no-cache-dir --upgrade \
     pip \
-    wheel>=0.46.2 \
-    jaraco.context>=6.1.0
+    setuptools \
+    wheel
 
+# ✅ Now install app dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# ✅ Copy app code
 COPY app.py routes.py model.py database.py ./
 
-# Set default port
 ENV PORT=8080
 
-# Initialize DB and run the app
 CMD ["python", "app.py"]
