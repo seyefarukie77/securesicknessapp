@@ -112,7 +112,7 @@ jobs:
       # Example: run container and do a basic health check before pushing (optional but strong)
       - name: Container health check
         run: |
-          CONTAINER_ID=$(docker run -d $IMAGE_REPO:$IMAGE_TAG)
+          CONTAINER_ID=$(docker run -d -e PORT=8080 $IMAGE_REPO:$IMAGE_TAG)
           sleep 5
           # wait for container to start
           if ! docker logs $CONTAINER_ID 2>&1 | grep -q "Listening on port"; then
