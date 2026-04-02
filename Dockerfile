@@ -5,6 +5,11 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
+RUN pip install --no-cache-dir --upgrade \
+    pip \
+    wheel>=0.46.2 \
+    jaraco.context>=6.1.0
+
 COPY app.py routes.py model.py database.py ./
 
 # Set default port
