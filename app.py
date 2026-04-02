@@ -9,8 +9,8 @@ def create_app():
     app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///sickness.db"
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["UPLOAD_FOLDER"] = "uploads"
-    os.makedirs(app.config["UPLOAD_FOLDER"], exist
-
+    os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+    
     db.init_app(app)
 
     # Register blueprints
