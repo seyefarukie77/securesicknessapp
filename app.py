@@ -1,5 +1,5 @@
 #app.py
-from flask import Flask
+from flask import Flask, jsonify
 import os
 import sys
 
@@ -39,6 +39,10 @@ if os.environ.get("INIT_DB") == "true":
     db.session.commit()
 
     print("Database initialised.")
+    
+    @app.route("/health")
+    def health_check():
+        return jsonify({"status": "healthy"}), 200
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
