@@ -4,7 +4,7 @@ from datetime import datetime
 from flask import Blueprint, request, jsonify, abort, send_from_directory
 from werkzeug.utils import secure_filename
 from database import db
-from models import User, SicknessReport
+from model import User, SicknessReport
 
 sickness_bp = Blueprint("sickness", __name__)
 
