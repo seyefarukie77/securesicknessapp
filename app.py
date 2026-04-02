@@ -12,8 +12,10 @@ from model import User
 
 def create_app():
     app = Flask(__name__)
+
     app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///sickness.db"
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
     app.config["UPLOAD_FOLDER"] = "uploads"
     os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
     
@@ -26,23 +28,18 @@ def create_app():
 
 app = create_app()
 
+
+# HEALTH ENDPOINT — ALWAYS REGISTERED
+@app.route("/health")
+def health_check():
+    return jsonify({"status": "healthy"}), 200
+
 # Flask CLI command
 if os.environ.get("INIT_DB") == "true":
     with app.app_context():
         db.create_all()
 
-    # Demo users
-    employee = User(name="Alice Employee", role="employee")
-    manager = User(name="Bob Manager", role="manager")
-
-    db.session.add_all([employee, manager])
-    db.session.commit()
-
     print("Database initialised.")
-    
-    @app.route("/health")
-    def health_check():
-        return jsonify({"status": "healthy"}), 200
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
