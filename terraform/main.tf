@@ -1,9 +1,9 @@
 terraform {
   required_version = ">= 1.6.0"
-  
+
   backend "gcs" {
-    bucket  = "securesicknessapp-tf-state"
-    prefix  = "securesicknessapp/terraform"
+    bucket = "securesicknessapp-tf-state"
+    prefix = "securesicknessapp/terraform"
   }
 
   required_providers {
