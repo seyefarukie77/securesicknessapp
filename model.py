@@ -18,3 +18,4 @@ class SicknessReport(db.Model):
     document_path = db.Column(db.String(255), nullable=True)
 
     employee = db.relationship("User", backref="sickness_reports")
+    
