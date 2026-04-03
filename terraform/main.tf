@@ -40,13 +40,34 @@ resource "google_container_cluster" "gke" {
   # Must match existing cluster
   deletion_protection = true
 
-  remove_default_node_pool = true
-  initial_node_count       = 1
+  remove_default_node_pool = false
+  initial_node_count       = 0
 
   networking_mode = "VPC_NATIVE"
   ip_allocation_policy {}
   network    = "default"
   subnetwork = "default"
+
+
+  lifecycle {
+    ignore_changes = [
+      initial_node_count,
+      remove_default_node_pool,
+      node_pool,
+      node_pool_defaults,
+      node_config,
+      node_pool_auto_config,
+      addons_config,
+      logging_config,
+      monitoring_config,
+      master_auth,
+      release_channel,
+      security_posture_config,
+      private_cluster_config,
+      workload_identity_config,
+      cluster_autoscaling,
+    ]
+  }
 }
 
 resource "google_container_node_pool" "primary_nodes" {
