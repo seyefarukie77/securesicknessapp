@@ -37,7 +37,29 @@ resource "kubernetes_deployment" "secureapp" {
           image = "${var.image_repo}:${var.image_tag}"
 
           port {
-            container_port = 8000
+            container_port = 8080
+          }
+
+          readiness_probe {
+            http_get {
+              path = "/health"
+              port = 8080
+            }
+            initial_delay_seconds = 5
+            period_seconds        = 10
+            timeout_seconds       = 2
+            failure_threshold     = 3
+          }
+
+          liveness_probe {
+            http_get {
+              path = "/health"
+              port = 8080
+            }
+            initial_delay_seconds = 15
+            period_seconds        = 20
+            timeout_seconds       = 2
+            failure_threshold     = 3
           }
         }
       }
