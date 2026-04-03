@@ -1,5 +1,10 @@
 terraform {
   required_version = ">= 1.6.0"
+  
+  backend "gcs" {
+    bucket  = "securesicknessapp-tf-state"
+    prefix  = "securesicknessapp/terraform"
+  }
 
   required_providers {
     google = {
@@ -35,8 +40,8 @@ resource "google_container_cluster" "gke" {
   # Must match existing cluster
   deletion_protection = true
 
-  #remove_default_node_pool = true
-  #initial_node_count       = 1
+  remove_default_node_pool = true
+  initial_node_count       = 1
 
   networking_mode = "VPC_NATIVE"
   ip_allocation_policy {}
