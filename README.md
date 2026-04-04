@@ -120,7 +120,7 @@ No manual kubectl commands are needed.
 Code
 /
 ├── app/                     # Python API source code
-│   ├── main.py
+│   ├── app.py
 │   ├── requirements.txt
 │   └── Dockerfile
 │
