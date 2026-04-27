@@ -52,7 +52,6 @@ def submit():
 def records():
     data = get_all_records()  # from your model/database
     return render_template("records.html", records=data)
-``
 
 
 if os.environ.get("INIT_DB") == "true":
@@ -62,4 +61,9 @@ if os.environ.get("INIT_DB") == "true":
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
+    app.run(
+        host="0.0.0.0", 
+        port=int(os.environ.get("PORT", 8000)),
+        debug=False
+    )
+    
