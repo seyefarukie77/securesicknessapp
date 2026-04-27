@@ -1,4 +1,4 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, render_template, request, redirect, url_for
 import os
 import sys
 
@@ -34,6 +34,25 @@ app = create_app()
 @app.route("/health")
 def health_check():
     return jsonify({"status": "healthy"}), 200
+
+@app.route("/")
+def home():
+    return render_template("index.html")
+
+
+@app.route("/submit", methods=["GET", "POST"])
+def submit():
+    if request.method == "POST":
+        # existing logic (save record)
+        return redirect(url_for("records"))
+    return render_template("submit.html")
+
+
+@app.route("/records")
+def records():
+    data = get_all_records()  # from your model/database
+    return render_template("records.html", records=data)
+``
 
 
 if os.environ.get("INIT_DB") == "true":

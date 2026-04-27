@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Sickness Records</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+
+  <h1>Sickness Records</h1>
+
+  {% if records %}
+    <table>
+      <thead>
+        <tr>
+          <th>Employee ID</th>
+          <th>Start Date</th>
+          <th>End Date</th>
+          <th>Reason</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for record in records %}
+          <tr>
+            <td>{{ record.employee_id }}</td>
+            <td>{{ record.start_date }}</td>
+            <td>{{ record.end_date }}</td>
+            <td>{{ record.reason }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p>No sickness records found.</p>
+  {% endif %}
+
+  <p><a href="/">⬅ Back to Home</a></p>
+
+</body>
+</html>
