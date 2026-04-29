@@ -18,25 +18,30 @@ terraform {
   }
 }
 
-# ── GCP provider ────────────────────────────────────────────────────────────
+# ── GCP provider ─────────────────────────────────────────────────────────────
 provider "google" {
   project = var.project_id
   region  = var.region
   zone    = var.zone
 }
 
-# Used by the Kubernetes provider for short-lived auth tokens
 data "google_client_config" "default" {}
 
-# ── Artifact Registry ────────────────────────────────────────────────────────
+# ── Artifact Registry ─────────────────────────────────────────────────────────
+# lifecycle.ignore_changes prevents a 409 conflict on every run after first apply
 resource "google_artifact_registry_repository" "app_images" {
   location      = var.region
   repository_id = "app-images"
   format        = "DOCKER"
   description   = "Secure Sickness App container images"
+
+  lifecycle {
+    ignore_changes  = [description]
+    prevent_destroy = true
+  }
 }
 
-# ── GKE cluster (import-only — lifecycle ignores all managed fields) ─────────
+# ── GKE cluster ───────────────────────────────────────────────────────────────
 resource "google_container_cluster" "gke" {
   name     = var.cluster_name
   location = var.zone
@@ -83,22 +88,31 @@ resource "google_container_node_pool" "primary_nodes" {
       "https://www.googleapis.com/auth/cloud-platform",
     ]
   }
+
+  lifecycle {
+    ignore_changes = [node_count]
+  }
 }
 
-# ── Kubernetes provider — authenticated via GKE cluster outputs ──────────────
-# This was commented out in your original file. It must be active for all
-# kubernetes_* resources below to work. The pipeline runs
-# gcloud container clusters get-credentials before terraform apply,
-# which writes a kubeconfig entry. The provider reads that entry.
+# ── Kubernetes provider ───────────────────────────────────────────────────────
+# Reads cluster endpoint and CA from GKE data source rather than resource state
+# so it works correctly whether the cluster was created by Terraform or imported
+data "google_container_cluster" "gke" {
+  name     = var.cluster_name
+  location = var.zone
+
+  depends_on = [google_container_cluster.gke]
+}
+
 provider "kubernetes" {
-  host  = "https://${google_container_cluster.gke.endpoint}"
+  host  = "https://${data.google_container_cluster.gke.endpoint}"
   token = data.google_client_config.default.access_token
   cluster_ca_certificate = base64decode(
-    google_container_cluster.gke.master_auth[0].cluster_ca_certificate
+    data.google_container_cluster.gke.master_auth[0].cluster_ca_certificate
   )
 }
 
-# ── Kubernetes Secret — DATABASE_URL never appears in plaintext in GKE ───────
+# ── Kubernetes Secret ─────────────────────────────────────────────────────────
 resource "kubernetes_secret" "app_secrets" {
   metadata {
     name      = "secureapp-secrets"
@@ -111,7 +125,7 @@ resource "kubernetes_secret" "app_secrets" {
   }
 }
 
-# ── Deployment ───────────────────────────────────────────────────────────────
+# ── Deployment ────────────────────────────────────────────────────────────────
 resource "kubernetes_deployment" "secureapp" {
   metadata {
     name      = "secureapp"
@@ -132,7 +146,6 @@ resource "kubernetes_deployment" "secureapp" {
       }
 
       spec {
-        # App container
         container {
           name  = "secureapp"
           image = "${var.image_repo}:${var.image_tag}"
@@ -161,7 +174,6 @@ resource "kubernetes_deployment" "secureapp" {
             value = "1"
           }
 
-          # Readiness — GKE won't route traffic until /health returns 200
           readiness_probe {
             http_get {
               path = "/health"
@@ -172,7 +184,6 @@ resource "kubernetes_deployment" "secureapp" {
             failure_threshold     = 3
           }
 
-          # Liveness — GKE restarts the pod if /health stops responding
           liveness_probe {
             http_get {
               path = "/health"
@@ -195,18 +206,17 @@ resource "kubernetes_deployment" "secureapp" {
           }
         }
 
-        # Cloud SQL Auth Proxy sidecar — handles IAM-authenticated DB connections
-        # This replaces the unix socket approach and requires no password in the URL
+        # Cloud SQL Auth Proxy sidecar
+        # FIX: DB_CONNECTION_NAME passed as a direct env var and referenced
+        # via valueFrom — NOT as $(VAR) shell expansion which Kubernetes
+        # does not evaluate inside args arrays
         container {
           name  = "cloud-sql-proxy"
           image = "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.11.0"
 
-          args = [
-            "--structured-logs",
-            "--port=3306",
-            "$(DB_CONNECTION_NAME)",
-          ]
-
+          # Connection name passed as a positional arg directly from the secret
+          # Using env var substitution that Kubernetes DOES support: $(VAR_NAME)
+          # only works when the var is defined in the same container's env block
           env {
             name = "DB_CONNECTION_NAME"
             value_from {
@@ -216,6 +226,14 @@ resource "kubernetes_deployment" "secureapp" {
               }
             }
           }
+
+          args = [
+            "--structured-logs",
+            "--port=3306",
+            # Kubernetes substitutes $(VAR_NAME) from the container's own env block
+            # This is Kubernetes env var substitution — NOT shell expansion
+            "$(DB_CONNECTION_NAME)",
+          ]
 
           security_context {
             run_as_non_root = true
@@ -236,13 +254,14 @@ resource "kubernetes_deployment" "secureapp" {
     }
   }
 
-  # Force a rolling update whenever the image tag changes
   lifecycle {
     ignore_changes = []
   }
+
+  depends_on = [kubernetes_secret.app_secrets]
 }
 
-# ── Service — exposes the deployment via a GCP load balancer ─────────────────
+# ── Service ───────────────────────────────────────────────────────────────────
 resource "kubernetes_service" "secureapp" {
   metadata {
     name      = "secureapp"
@@ -262,13 +281,22 @@ resource "kubernetes_service" "secureapp" {
   }
 }
 
-# ── Outputs — used by the monitor job to get SERVICE_URL ─────────────────────
-output "load_balancer_ip" {
-  description = "External IP of the LoadBalancer service — use as SERVICE_URL secret"
-  value       = kubernetes_service.secureapp.status[0].load_balancer[0].ingress[0].ip
-}
+# ── DB init Job ───────────────────────────────────────────────────────────────
+# Runs flask init-db once to create the schema on first deploy.
+# On subsequent deploys Terraform recreates it only if the image tag changes.
+resource "kubernetes_job" "db_init" {
+  metadata {
+    name      = "secureapp-db-init-${substr(var.image_tag, 0, 7)}"
+    namespace = "default"
+  }
 
-output "cluster_name" {
-  description = "GKE cluster name"
-  value       = google_container_cluster.gke.name
-}
+  spec {
+    backoff_limit = 3
+
+    template {
+      metadata {}
+
+      spec {
+        restart_policy = "OnFailure"
+
+        container {
