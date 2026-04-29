@@ -112,16 +112,39 @@ jobs:
       # Example: run container and do a basic health check before pushing (optional but strong)
       - name: Container health check
         run: |
-          CONTAINER_ID=$(docker run -d -p 8080:8080 -e PORT=8080 "$IMAGE_REPO:$IMAGE_TAG")
-          sleep 5
-          # wait for container to start
+          CONTAINER_ID=$(docker run -d \
+            -p 8080:8080 \
+            -e PORT=8080 \
+            -e DATABASE_URL="sqlite:////tmp/test.db" \
+            -e FLASK_APP=app.py \
+            "$IMAGE_REPO:$IMAGE_TAG")
+      
+          echo "Waiting for container..."
+          for i in $(seq 1 15); do
+            sleep 2
+            STATUS=$(docker inspect --format='{{.State.Status}}' "$CONTAINER_ID" 2>/dev/null)
+            if [ "$STATUS" != "running" ]; then
+              echo "Container exited early. Logs:"
+              docker logs "$CONTAINER_ID"
+              docker rm "$CONTAINER_ID"
+              exit 1
+            fi
+            if curl -sf http://localhost:8080/health; then
+              echo "Health check passed"
+              docker stop "$CONTAINER_ID"
+              docker rm "$CONTAINER_ID"
+              exit 0
+            fi
+            echo "Attempt $i/15 — not ready yet"
+          done
+      
+          echo "Timeout. Container logs:"
+          docker logs "$CONTAINER_ID"
+          docker stop "$CONTAINER_ID"
+          docker rm "$CONTAINER_ID"
+          exit 1
 
-          # HTTP health check
-          curl -f http://localhost:8080/health
-          
-          # Clean up
-          docker stop $CONTAINER_ID
-
+      
       # ---- Container vulnerability scan BEFORE push (optional but strong) ----
       # Trivy image scan example is from Trivy action docs. [4](https://github.com/aquasecurity/trivy-action)
       - name: Trivy image scan (pre-push)
