@@ -18,7 +18,6 @@ terraform {
   }
 }
 
-# ── GCP provider ─────────────────────────────────────────────────────────────
 provider "google" {
   project = var.project_id
   region  = var.region
@@ -27,8 +26,6 @@ provider "google" {
 
 data "google_client_config" "default" {}
 
-# ── Artifact Registry ─────────────────────────────────────────────────────────
-# lifecycle.ignore_changes prevents a 409 conflict on every run after first apply
 resource "google_artifact_registry_repository" "app_images" {
   location      = var.region
   repository_id = "app-images"
@@ -41,7 +38,6 @@ resource "google_artifact_registry_repository" "app_images" {
   }
 }
 
-# ── GKE cluster ───────────────────────────────────────────────────────────────
 resource "google_container_cluster" "gke" {
   name     = var.cluster_name
   location = var.zone
@@ -94,9 +90,6 @@ resource "google_container_node_pool" "primary_nodes" {
   }
 }
 
-# ── Kubernetes provider ───────────────────────────────────────────────────────
-# Reads cluster endpoint and CA from GKE data source rather than resource state
-# so it works correctly whether the cluster was created by Terraform or imported
 data "google_container_cluster" "gke" {
   name     = var.cluster_name
   location = var.zone
@@ -112,7 +105,6 @@ provider "kubernetes" {
   )
 }
 
-# ── Kubernetes Secret ─────────────────────────────────────────────────────────
 resource "kubernetes_secret" "app_secrets" {
   metadata {
     name      = "secureapp-secrets"
@@ -125,7 +117,6 @@ resource "kubernetes_secret" "app_secrets" {
   }
 }
 
-# ── Deployment ────────────────────────────────────────────────────────────────
 resource "kubernetes_deployment" "secureapp" {
   metadata {
     name      = "secureapp"
@@ -206,17 +197,10 @@ resource "kubernetes_deployment" "secureapp" {
           }
         }
 
-        # Cloud SQL Auth Proxy sidecar
-        # FIX: DB_CONNECTION_NAME passed as a direct env var and referenced
-        # via valueFrom — NOT as $(VAR) shell expansion which Kubernetes
-        # does not evaluate inside args arrays
         container {
           name  = "cloud-sql-proxy"
           image = "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.11.0"
 
-          # Connection name passed as a positional arg directly from the secret
-          # Using env var substitution that Kubernetes DOES support: $(VAR_NAME)
-          # only works when the var is defined in the same container's env block
           env {
             name = "DB_CONNECTION_NAME"
             value_from {
@@ -230,8 +214,6 @@ resource "kubernetes_deployment" "secureapp" {
           args = [
             "--structured-logs",
             "--port=3306",
-            # Kubernetes substitutes $(VAR_NAME) from the container's own env block
-            # This is Kubernetes env var substitution — NOT shell expansion
             "$(DB_CONNECTION_NAME)",
           ]
 
@@ -247,8 +229,39 @@ resource "kubernetes_deployment" "secureapp" {
             limits = {
               cpu    = "200m"
               memory = "128Mi"
+            }
+          }
+        }
+      }
+    }
+  }
 
-# ── DB init Job ───────────────────────────────────────────────────────────────
+  lifecycle {
+    ignore_changes = []
+  }
+
+  depends_on = [kubernetes_secret.app_secrets]
+}
+
+resource "kubernetes_service" "secureapp" {
+  metadata {
+    name      = "secureapp"
+    namespace = "default"
+  }
+
+  spec {
+    selector = { app = "secureapp" }
+
+    port {
+      port        = 80
+      target_port = 8080
+      protocol    = "TCP"
+    }
+
+    type = "LoadBalancer"
+  }
+}
+
 resource "kubernetes_job" "db_init" {
   metadata {
     name      = "secureapp-db-init-${substr(var.image_tag, 0, 7)}"
@@ -322,7 +335,6 @@ resource "kubernetes_job" "db_init" {
   depends_on = [kubernetes_secret.app_secrets]
 }
 
-# ── Outputs ───────────────────────────────────────────────────────────────────
 output "load_balancer_ip" {
   description = "External IP — set this as the SERVICE_URL GitHub secret"
   value       = kubernetes_service.secureapp.status[0].load_balancer[0].ingress[0].ip
