@@ -17,5 +17,14 @@ class SicknessReport(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     document_path = db.Column(db.String(255), nullable=True)
 
-    employee = db.relationship("User", backref="sickness_reports")
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "employee_name": self.employee_name,
+            "department": self.department,
+            "start_date": str(self.start_date),
+            "end_date": str(self.end_date) if self.end_date else None,
+            "reason_category": self.reason_category,
+            "notes": self.notes,
+        }
     
