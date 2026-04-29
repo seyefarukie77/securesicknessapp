@@ -56,7 +56,9 @@ def records():
     return render_template("records.html", records=data)
 
 
-if os.environ.get("INIT_DB") == "true":
+# Keep this — it only runs when you call: flask init-db
+@app.cli.command("init-db")
+def init_db_command():
     with app.app_context():
         db.create_all()
     print("Database initialised.")
