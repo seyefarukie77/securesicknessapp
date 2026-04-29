@@ -6,7 +6,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from database import db
 from routes import sickness_bp
-from model import User
+from model import User, SicknessRecord
 import click
 from flask.cli import with_appcontext
 
@@ -14,7 +14,9 @@ from flask.cli import with_appcontext
 def create_app():
     app = Flask(__name__)
 
-    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///sickness.db"
+    app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
+    "DATABASE_URL", "sqlite:///sickness.db"
+)
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
     app.config["UPLOAD_FOLDER"] = "uploads"
@@ -50,7 +52,7 @@ def submit():
 
 @app.route("/records")
 def records():
-    data = get_all_records()  # from your model/database
+    data = SicknessRecord.query.all()  # from your model/database
     return render_template("records.html", records=data)
 
 
