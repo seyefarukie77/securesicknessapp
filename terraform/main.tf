@@ -340,7 +340,3 @@ output "load_balancer_ip" {
   value       = kubernetes_service.secureapp.status[0].load_balancer[0].ingress[0].ip
 }
 
-output "cluster_name" {
-  description = "GKE cluster name"
-  value       = google_container_cluster.gke.name
-}
