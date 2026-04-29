@@ -6,7 +6,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from database import db
 from routes import sickness_bp
-from model import User, SicknessRecord
+from model import SicknessRecord
 import click
 from flask.cli import with_appcontext
 
