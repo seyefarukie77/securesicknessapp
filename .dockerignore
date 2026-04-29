@@ -49,7 +49,6 @@ pytest.ini
 Dockerfile
 docker-compose*
 
-
 # ---- Secrets ----
 .env
 .env.*
