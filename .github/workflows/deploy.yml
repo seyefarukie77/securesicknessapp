@@ -221,9 +221,13 @@ jobs:
         run: |
           terraform apply -auto-approve \
             -var="project_id=${{ secrets.GCP_PROJECT_ID }}" \
+            -var="cluster_name=${{ secrets.GKE_CLUSTER_NAME }}" \
             -var="image_repo=$IMAGE_REPO" \
-            -var="image_tag=$IMAGE_TAG"
+            -var="image_tag=$IMAGE_TAG" \
+            -var="database_url=${{ secrets.GCP_DB_URL }}" \
+            -var="db_connection_name=${{ secrets.GCP_DB_CONNECTION_NAME }}"
 
+            
   monitor:
     name: Monitor (Rollout + Health Check)
     runs-on: ubuntu-latest
