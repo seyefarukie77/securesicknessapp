@@ -1,13 +1,14 @@
-flask
-flask_sqlalchemy
-gunicorn
-setuptools>=79.0.1
-wheel>=0.46.2
-jaraco.context>=6.1.0
+# Web framework
 flask>=3.0
 flask-sqlalchemy>=3.1
-cloud-sql-python-connector[pymysql]>=1.7
-pymysql>=1.1
-sqlalchemy>=2.0
+
+# WSGI server — replaces Flask dev server in production and CI health check
 gunicorn>=22.0
+
+# Database
+sqlalchemy>=2.0
+pymysql>=1.1
+cloud-sql-python-connector[pymysql]>=1.7
+
+# Testing — used by pytest step in CI pipeline
 pytest>=8.0
