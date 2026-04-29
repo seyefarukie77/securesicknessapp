@@ -1,4 +1,4 @@
-README — Secure Sickness Management Platform (Terraform + GKE + CI/CD)
+  README — Secure Sickness Management Platform (Terraform + GKE + CI/CD)
 Overview
 # securesicknessapp
 DevOps pipeline for Secure Sickness App
@@ -20,7 +20,7 @@ This project implements a fully cloud‑native sickness management platform desi
 -   Terraform for full infrastructure-as-code
 -   GitHub Actions for CI/CD (build → push → terraform apply)
 
-Folder structure (recommended)
+Folder structure 
 Code
 infra/
   main.tf
@@ -33,6 +33,11 @@ infra/
     service.tf
     namespace.tf
     variables.tf
+  templates
+   index.html
+   records.html
+   submit.html
+
 Your application code stays in the repo root.
 
 Architecture
