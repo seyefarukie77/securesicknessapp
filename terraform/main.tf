@@ -326,17 +326,7 @@ resource "kubernetes_job" "db_init" {
     }
   }
 
-  wait_for_completion = true
-
-  timeouts {
-    create = "5m"
-  }
+  wait_for_completion = false
 
   depends_on = [kubernetes_secret.app_secrets]
 }
-
-output "load_balancer_ip" {
-  description = "External IP — set this as the SERVICE_URL GitHub secret"
-  value       = kubernetes_service.secureapp.status[0].load_balancer[0].ingress[0].ip
-}
-
