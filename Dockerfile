@@ -16,7 +16,7 @@ COPY templates ./templates
 COPY static ./static
 
 RUN addgroup --system appgroup && \
-    adduser --system --ingroup appgroup appuser
+    adduser --system --ingroup appgroup --home /home/appuser --create-home appuser
 USER appuser
 
 ENV PORT=8080
