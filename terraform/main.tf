@@ -247,43 +247,8 @@ resource "kubernetes_deployment" "secureapp" {
             limits = {
               cpu    = "200m"
               memory = "128Mi"
-            }
-          }
-        }
-      }
-    }
-  }
-
-  lifecycle {
-    ignore_changes = []
-  }
-
-  depends_on = [kubernetes_secret.app_secrets]
-}
-
-# ── Service ───────────────────────────────────────────────────────────────────
-resource "kubernetes_service" "secureapp" {
-  metadata {
-    name      = "secureapp"
-    namespace = "default"
-  }
-
-  spec {
-    selector = { app = "secureapp" }
-
-    port {
-      port        = 80
-      target_port = 8080
-      protocol    = "TCP"
-    }
-
-    type = "LoadBalancer"
-  }
-}
 
 # ── DB init Job ───────────────────────────────────────────────────────────────
-# Runs flask init-db once to create the schema on first deploy.
-# On subsequent deploys Terraform recreates it only if the image tag changes.
 resource "kubernetes_job" "db_init" {
   metadata {
     name      = "secureapp-db-init-${substr(var.image_tag, 0, 7)}"
@@ -300,3 +265,70 @@ resource "kubernetes_job" "db_init" {
         restart_policy = "OnFailure"
 
         container {
+          name    = "db-init"
+          image   = "${var.image_repo}:${var.image_tag}"
+          command = ["flask", "init-db"]
+
+          env {
+            name = "DATABASE_URL"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret.app_secrets.metadata[0].name
+                key  = "DATABASE_URL"
+              }
+            }
+          }
+
+          env {
+            name  = "FLASK_APP"
+            value = "app.py"
+          }
+        }
+
+        container {
+          name  = "cloud-sql-proxy"
+          image = "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.11.0"
+
+          env {
+            name = "DB_CONNECTION_NAME"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret.app_secrets.metadata[0].name
+                key  = "DB_CONNECTION_NAME"
+              }
+            }
+          }
+
+          args = [
+            "--structured-logs",
+            "--port=3306",
+            "$(DB_CONNECTION_NAME)",
+          ]
+
+          security_context {
+            run_as_non_root = true
+          }
+        }
+      }
+    }
+  }
+
+  wait_for_completion = true
+
+  timeouts {
+    create = "5m"
+  }
+
+  depends_on = [kubernetes_secret.app_secrets]
+}
+
+# ── Outputs ───────────────────────────────────────────────────────────────────
+output "load_balancer_ip" {
+  description = "External IP — set this as the SERVICE_URL GitHub secret"
+  value       = kubernetes_service.secureapp.status[0].load_balancer[0].ingress[0].ip
+}
+
+output "cluster_name" {
+  description = "GKE cluster name"
+  value       = google_container_cluster.gke.name
+}
