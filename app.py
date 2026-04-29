@@ -15,7 +15,7 @@ def create_app():
     app = Flask(__name__)
 
     app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
-    "DATABASE_URL", "sqlite:///sickness.db"
+    "DATABASE_URL", "sqlite:////tmp/sickness.db"
 )
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
