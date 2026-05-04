@@ -11,10 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-
     env:
       PYTHON_VERSION: "3.11"
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -30,24 +28,18 @@ jobs:
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
           pip install pytest bandit pip-audit
 
-      # ---- Tests (CI) ----
       - name: Run unit tests
         run: |
           pytest -q
 
-      # ---- SAST (Bandit) ----
-      # Minimal Bandit example comes from Bandit docs. [3](https://bandit.readthedocs.io/en/latest/ci-cd/github-actions.html)
       - name: Bandit (SAST)
         run: |
           bandit -r . -x ./.venv,./tests,./google-cloud-sdk -ll -iii
 
-      # ---- Dependency vulnerability scan ----
       - name: pip-audit (dependencies)
         run: |
           pip-audit || true
 
-      # ---- IaC scan (Terraform) ----
-      # If you have Terraform in ./terraform, scan it with Trivy in fs mode. [4](https://github.com/aquasecurity/trivy-action)
       - name: Trivy IaC scan (Terraform/K8s manifests)
         uses: aquasecurity/trivy-action@master
         with:
@@ -57,6 +49,7 @@ jobs:
           exit-code: "1"
           severity: "CRITICAL,HIGH"
 
+
   build_store:
     name: Build Container & Store Artefact
     runs-on: ubuntu-latest
@@ -64,16 +57,12 @@ jobs:
     permissions:
       contents: read
       id-token: write
-
     env:
       REGION: europe-west1
       IMAGE_NAME: secureapp
       IMAGE_TAG: ${{ github.sha }}
       IMAGE_REPO: europe-west1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/app-images/secureapp
-
-      # opt-in early to Node24 behaviour to avoid the Node20 deprecation warning you saw
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -108,7 +97,6 @@ jobs:
       - name: Run tests
         run: pytest
 
-      # Example: run container and do a basic health check before pushing (optional but strong)
       - name: Container health check
         run: |
           CONTAINER_ID=$(docker run -d \
@@ -117,11 +105,11 @@ jobs:
             -e DATABASE_URL="sqlite:////tmp/test.db" \
             -e FLASK_APP=app.py \
             "$IMAGE_REPO:$IMAGE_TAG")
-      
+
           echo "Waiting for container..."
           for i in $(seq 1 15); do
             sleep 2
-            STATUS=$(docker inspect --format='{{.State.Status}}' "$CONTAINER_ID" 2>/dev/null)
+            STATUS=$(docker inspect "$CONTAINER_ID" 2>/dev/null | jq -r '.[0].State.Status')
             if [ "$STATUS" != "running" ]; then
               echo "Container exited early. Logs:"
               docker logs "$CONTAINER_ID"
@@ -136,16 +124,13 @@ jobs:
             fi
             echo "Attempt $i/15 — not ready yet"
           done
-      
+
           echo "Timeout. Container logs:"
           docker logs "$CONTAINER_ID"
           docker stop "$CONTAINER_ID"
           docker rm "$CONTAINER_ID"
           exit 1
 
-      
-      # ---- Container vulnerability scan BEFORE push (optional but strong) ----
-      # Trivy image scan example is from Trivy action docs. [4](https://github.com/aquasecurity/trivy-action)
       - name: Trivy image scan (pre-push)
         uses: aquasecurity/trivy-action@master
         with:
@@ -160,7 +145,6 @@ jobs:
         run: |
           docker push $IMAGE_REPO:$IMAGE_TAG
 
-      # Optional: store build metadata as a pipeline artefact (audit trail)
       - name: Write build metadata
         run: |
           echo "image=$IMAGE_REPO:$IMAGE_TAG" > build-metadata.txt
@@ -172,82 +156,26 @@ jobs:
           name: build-metadata
           path: build-metadata.txt
 
+  deploy:
+    name: Deploy (Terraform Apply)
+    runs-on: ubuntu-latest
+    needs: [ build_store ]
+    permissions:
+      contents: read
+      id-token: write
 
-deploy_dev:
-   name: Deploy to Dev
-   runs-on: ubuntu-latest
-   needs: [ build_store ]
-   environment: development
-   permissions: 
-     contents: read
-     id-token: write
-   env:
-     REGION: europe-west1
-     ZONE: europe-west1-b
-     CLUSTER_NAME: ${{ secrets.GKE_CLUSTER_NAME }}
-     IMAGE_TAG: ${{ github.sha }}
-     IMAGE_REPO: europe-west1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/app-images/secureapp
-     FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
-   steps:
-     - name: Checkout
-       uses: actions/checkout@v4
+    env:
+      REGION: europe-west1
+      ZONE: europe-west1-b
+      CLUSTER_NAME: ${{ secrets.GKE_CLUSTER_NAME }}
+      IMAGE_TAG: ${{ github.sha }}
+      IMAGE_REPO: europe-west1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/app-images/secureapp
 
-     - name: Authenticate to Google Cloud
-       uses: google-github-actions/auth@v2
-       with:
-         credentials_json: ${{ secrets.GCP_SA_KEY }}
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
-     - name: Set up gcloud (incl. GKE auth plugin)
-       uses: google-github-actions/setup-gcloud@v2
-       with: 
-         install_components: gke-gcloud-auth-plugin
-
-     - name: Configure kubecontext for Terraform
-       run: |
-         gcloud container clusters get-credentials "$CLUSTER_NAME" \
-           --zone "$ZONE" \
-           --project "${{ secrets.GCP_PROJECT_ID }}"
-
-     - name: Setup Terraform
-       uses: hashicorp/setup-terraform@v3
-
-     - name: terraform init
-       working-directory: terraform
-       run: terraform init
-
-     - name: terraform validate
-       working-directory: terraform
-       run: terraform validate
-
-     - name: Terraform apply (dev)
-       working-directory: terraform
-       run: |
-         terraform apply -auto-approve \
-           -var="project_id=${{ secrets.GCP_PROJECT_ID }}" \
-           -var="cluster_name=${{ secrets.GKE_CLUSTER_NAME }}" \
-           -var="image_repo=$IMAGE_REPO" \
-           -var="image_tag=$IMAGE_TAG" \
-           -var="database_url=${{ secrets.GCP_DB_URL }}" \
-           -var="db_connection_name=${{ secrets.GCP_DB_CONNECTION_NAME }}"
-
- deploy_test:
-   name: Deploy to Test
-   runs-on: ubuntu-latest
-   needs: [ deploy_dev ]
-   environment: test
-   permissions:
-     contents: read
-     id-token: write
-   env:
-     REGION: europe-west1
-     ZONE: europe-west1-b
-     CLUSTER_NAME: ${{ secrets.GKE_CLUSTER_NAME }}
-     IMAGE_TAG: ${{ github.sha }}
-     IMAGE_REPO: europe-west1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/app-images/secureapp
-     FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
-   steps:
-     - name: Checkout
-       uses: actions/checkout@v4
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
      - name: Authenticate to Google Cloud
        uses: google-github-actions/auth@v2
@@ -259,135 +187,91 @@ deploy_dev:
        with:
          install_components: gke-gcloud-auth-plugin
 
-     - name: Configure kubecontext for Terraform
-       run: |
-         gcloud container clusters get-credentials "$CLUSTER_NAME" \
-           --zone "$ZONE" \
-           --project "${{ secrets.GCP_PROJECT_ID }}"
+      # Needed so Terraform's kubernetes provider can talk to the cluster (no kubectl apply).
+      - name: Configure kubecontext for Terraform
+        run: |
+          gcloud container clusters get-credentials "$CLUSTER_NAME" \
+            --zone "$ZONE" \
+            --project "${{ secrets.GCP_PROJECT_ID }}"
 
-     - name: Setup Terraform
-       uses: hashicorp/setup-terraform@v3
-    
-     - name: terraform init
-       working-directory: terraform
-       run: terraform init
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
 
-     - name: terraform validate
-       working-directory: terraform
-       run: terraform validate
+      - name: Terraform fmt & validate
+        working-directory: terraform
+        run: |
+          terraform fmt -check -diff
 
-     - name: Terraform apply (test)
-       working-directory: terraform
-       run: |
-         terraform apply -auto-approve \
-           -var="project_id=${{ secrets.GCP_PROJECT_ID }}" \
-           -var="cluster_name=${{ secrets.GKE_CLUSTER_NAME }}" \
-           -var="image_repo=$IMAGE_REPO" \
-           -var="image_tag=$IMAGE_TAG" \
-           -var="database_url=${{ secrets.GCP_DB_URL }}" \
-           -var="db_connection_name=${{ secrets.GCP_DB_CONNECTION_NAME }}"
+      - name: terraform init
+        working-directory: terraform
+        run: terraform init
+      - name: terraform validate
+        working-directory: terraform
+        run:   
+          terraform validate
 
+      # On PRs, run plan only (good governance pattern). [1](https://lloydsbanking.sharepoint.com/sites/FP/SitePages/GCP-2.0-Resources.aspx?web=1)
+      - name: Terraform plan (PR)
+        if: github.event_name == 'pull_request'
+        working-directory: terraform
+        run: |
+          terraform plan \
+            -var="project_id=${{ secrets.GCP_PROJECT_ID }}" \
+            -var="image_repo=$IMAGE_REPO" \
+            -var="image_tag=$IMAGE_TAG"
 
- deploy_prod:
-   name: Deploy to Production
-   runs-on: ubuntu-latest
-   needs: [ deploy_test ]
-   environment: production
-   permissions:
-     contents: read
-     id-token: write
-   env:
-     REGION: europe-west1
-     ZONE: europe-west1-b
-     CLUSTER_NAME: ${{ secrets.GKE_CLUSTER_NAME }}
-     IMAGE_TAG: ${{ github.sha }}
-     IMAGE_REPO: europe-west1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/app-images/secureapp
-     FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
-   steps:
-     - name: Checkout
-       uses: actions/checkout@v4
+      # On main, apply (CD)
+      - name: Terraform apply (main)
+        if: github.event_name == 'push'
+        working-directory: terraform
+        run: |
+          terraform apply -auto-approve \
+            -var="project_id=${{ secrets.GCP_PROJECT_ID }}" \
+            -var="cluster_name=${{ secrets.GKE_CLUSTER_NAME }}" \
+            -var="image_repo=$IMAGE_REPO" \
+            -var="image_tag=$IMAGE_TAG" \
+            -var="database_url=${{ secrets.GCP_DB_URL }}" \
+            -var="db_connection_name=${{ secrets.GCP_DB_CONNECTION_NAME }}"
 
-     - name: Authenticate to Google Cloud
-       uses: google-github-actions/auth@v2
-       with:
-         credentials_json: ${{ secrets.GCP_SA_KEY }}
+            
+  monitor:
+    name: Monitor (Rollout + Health Check)
+    runs-on: ubuntu-latest
+    needs: [ deploy ]
+    permissions:
+      contents: read
+      id-token: write
 
-     - name: Set up gcloud (incl. GKE auth plugin)
-       uses: google-github-actions/setup-gcloud@v2
-       with:
-         install_components: gke-gcloud-auth-plugin
+    env:
+      ZONE: europe-west1-b
+      CLUSTER_NAME: ${{ secrets.GKE_CLUSTER_NAME }}
+      NAMESPACE: default
+      DEPLOYMENT_NAME: secureapp
+      SERVICE_URL: ${{ secrets.SERVICE_URL }}
 
-     - name: Configure kubecontext for Terraform
-       run: |
-         gcloud container clusters get-credentials "$CLUSTER_NAME" \
-           --zone "$ZONE" \
-           --project "${{ secrets.GCP_PROJECT_ID }}"
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
-     - name: Setup Terraform
-       uses: hashicorp/setup-terraform@v3
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-     - name: terraform init
-       working-directory: terraform
-       run: terraform init
+      - name: Set up gcloud (incl. GKE auth plugin)
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          install_components: gke-gcloud-auth-plugin
 
-     - name: terraform validate
-       working-directory: terraform
-       run: terraform validate
+      - name: Get cluster credentials (read-only monitoring)
+        run: |
+          gcloud container clusters get-credentials "$CLUSTER_NAME" \
+            --zone "$ZONE" \
+            --project "${{ secrets.GCP_PROJECT_ID }}"
 
-     - name: Terraform plan (pre-prod review)
-       working-directory: terraform
-       run: |
-         terraform plan \
-           -var="project_id=${{ secrets.GCP_PROJECT_ID }}" \
-           -var="cluster_name=${{ secrets.GKE_CLUSTER_NAME }}" \
-           -var="image_repo=$IMAGE_REPO" \
-           -var="image_tag=$IMAGE_TAG" \
-           -var="database_url=${{ secrets.GCP_DB_URL }}" \
-           -var="db_connection_name=${{ secrets.GCP_DB_CONNECTION_NAME }}"
+      - name: Rollout status
+        run: |
+          kubectl rollout status deployment/$DEPLOYMENT_NAME -n $NAMESPACE --timeout=180s
 
-     - name: Terraform apply (production)
-       working-directory: terraform
-       run: |
-         terraform apply -auto-approve \
-           -var="project_id=${{ secrets.GCP_PROJECT_ID }}" \
-           -var="cluster_name=${{ secrets.GKE_CLUSTER_NAME }}" \
-           -var="image_repo=$IMAGE_REPO" \
-           -var="image_tag=$IMAGE_TAG" \
-           -var="database_url=${{ secrets.GCP_DB_URL }}" \
-           -var="db_connection_name=${{ secrets.GCP_DB_CONNECTION_NAME }}"
-
-
- monitor:
-   name: Monitor (Rollout + Health Check)
-   runs-on: ubuntu-latest
-   needs: [ deploy_prod ]          # ← changed from deploy to deploy_prod
-   permissions:
-     contents: read
-     id-token: write
-   env:
-     ZONE: europe-west1-b
-     CLUSTER_NAME: ${{ secrets.GKE_CLUSTER_NAME }}
-     NAMESPACE: default
-     DEPLOYMENT_NAME: secureapp
-     SERVICE_URL: ${{ secrets.SERVICE_URL }}
-     FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
-   steps:
-     - name: Authenticate to Google Cloud
-       uses: google-github-actions/auth@v2
-       with:
-         credentials_json: ${{ secrets.GCP_SA_KEY }}
-     - name: Set up gcloud (incl. GKE auth plugin)
-       uses: google-github-actions/setup-gcloud@v2
-       with:
-         install_components: gke-gcloud-auth-plugin
-     - name: Get cluster credentials (read-only monitoring)
-       run: |
-         gcloud container clusters get-credentials "$CLUSTER_NAME" \
-           --zone "$ZONE" \
-           --project "${{ secrets.GCP_PROJECT_ID }}"
-     - name: Rollout status
-       run: |
-         kubectl rollout status deployment/$DEPLOYMENT_NAME -n $NAMESPACE --timeout=180s
-     - name: Basic health check (HTTP)
-       run: |
-         curl -fsS "$SERVICE_URL" | head -c 200 || exit 1
+      - name: Basic health check (HTTP)
+        run: |
+          curl -fsS "$SERVICE_URL" | head -c 200 || exit 1
